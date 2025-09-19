@@ -4,50 +4,76 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/wb-go/wbf/dbpg"
-	"github.com/wb-go/wbf/retry"
+	wbfretry "github.com/wb-go/wbf/retry"
 	"github.com/yokitheyo/wb_level3_02/internal/model"
+	internalRetry "github.com/yokitheyo/wb_level3_02/internal/retry"
 )
 
 type PostgresRepo struct {
 	db            *dbpg.DB
-	retryStrategy retry.Strategy
+	retryStrategy wbfretry.Strategy
 }
 
-func NewPostgresRepo(db *dbpg.DB, strategy retry.Strategy) *PostgresRepo {
+func NewPostgresRepo(db *dbpg.DB, strategy wbfretry.Strategy) *PostgresRepo {
+	if strategy.Attempts <= 0 {
+		strategy = internalRetry.DefaultStrategy
+	}
 	return &PostgresRepo{db: db, retryStrategy: strategy}
 }
 
 func (r *PostgresRepo) Create(ctx context.Context, u *model.URL) error {
 	q := `INSERT INTO urls (short, original, created_at, expires_at)
-			  VALUES ($1, $2, now(), $3)
-			  RETURNING id, created_at
-			  `
-	//уточнить
+		  VALUES ($1, $2, now(), $3)
+		  RETURNING id, created_at
+		  `
+
 	var lastErr error
+
 	attempts := r.retryStrategy.Attempts
 	if attempts <= 0 {
-		attempts = 1
+		attempts = internalRetry.DefaultStrategy.Attempts
+		if attempts <= 0 {
+			attempts = 1
+		}
 	}
+
 	delay := r.retryStrategy.Delay
+	if delay <= 0 {
+		delay = internalRetry.DefaultStrategy.Delay
+		if delay <= 0 {
+			delay = 100 * time.Millisecond
+		}
+	}
+
+	backoff := r.retryStrategy.Backoff
+	if backoff <= 0 {
+		backoff = internalRetry.DefaultStrategy.Backoff
+		if backoff <= 0 {
+			backoff = 2.0
+		}
+	}
+
 	for i := 0; i < attempts; i++ {
 		row := r.db.Master.QueryRowContext(ctx, q, u.Short, u.Original, u.ExpiresAt)
-		if err := row.Scan(&u.ID, &u.CreatedAt); err != nil {
+		if err := row.Scan(&u.ID, &u.CreatedAt); err == nil {
 			return nil
 		} else {
 			lastErr = err
 		}
-		select {
-		case <-ctx.Done():
+
+		if ctx.Err() != nil {
 			return ctx.Err()
-		default:
 		}
+
 		time.Sleep(delay)
-		delay = time.Duration(float64(delay) * r.retryStrategy.Backoff)
+		delay = time.Duration(float64(delay) * backoff)
 	}
-	return lastErr
+
+	return fmt.Errorf("create url failed after %d attempts: %w", attempts, lastErr)
 }
 
 func (r *PostgresRepo) FindByShort(ctx context.Context, short string) (*model.URL, error) {
@@ -82,7 +108,7 @@ func (r *PostgresRepo) IncrementVisits(ctx context.Context, urlID int64) error {
 	return err
 }
 
-func (r *PostgresRepo) InsertCLick(ctx context.Context, c *model.Click) error {
+func (r *PostgresRepo) InsertClick(ctx context.Context, c *model.Click) error {
 	_, err := r.db.ExecWithRetry(ctx, r.retryStrategy, `
 	INSERT INTO clicks (url_id, short, occurred_at, user_agent, ip, referrer, device)
 	VALUES ($1, $2, $3, $4, $5, $6, $7)
