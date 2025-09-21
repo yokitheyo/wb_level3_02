@@ -257,14 +257,20 @@ async function viewAnalytics() {
 }
 
 async function getAnalytics(shortCode) {
-    const response = await fetch(`/analytics/${shortCode}`);
-    const data = await response.json();
+    try {
+        const response = await fetch(`/analytics/${shortCode}`);
 
-    if (!response.ok) {
-        throw new Error(data.error || 'Ошибка при получении аналитики');
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Analytics fetch error:', error);
+        throw error;
     }
-
-    return data;
 }
 
 // Получение дополнительных данных для аналитики (клики по дням)

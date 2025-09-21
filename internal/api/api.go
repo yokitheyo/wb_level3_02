@@ -18,6 +18,20 @@ type API struct {
 
 func NewAPI(a *app.App) *API {
 	engine := ginext.New()
+	engine.Use(func(c *ginext.Context) {
+		defer func() {
+			if err := recover(); err != nil {
+				zlog.Logger.Error().
+					Interface("panic", err).
+					Str("path", c.Request.URL.Path).
+					Str("method", c.Request.Method).
+					Msg("Panic recovered")
+				c.JSON(http.StatusInternalServerError, ginext.H{"error": "internal server error"})
+				c.Abort()
+			}
+		}()
+		c.Next()
+	})
 	engine.Use(ginext.Logger(), ginext.Recovery())
 	engine.LoadHTMLGlob("templates/*")
 	engine.Static("/static", "./static")

@@ -79,7 +79,7 @@ func (r *PostgresRepo) Create(ctx context.Context, u *model.URL) error {
 func (r *PostgresRepo) FindByShort(ctx context.Context, short string) (*model.URL, error) {
 	q := `SELECT id, short, original, created_at, expires_at, visits
           FROM urls 
-          WHERE short = $1 AND is_disabled = false
+          WHERE short = $1 AND (is_disabled = false OR is_disabled IS NULL)
           LIMIT 1
 	     `
 

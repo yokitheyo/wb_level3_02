@@ -141,11 +141,21 @@ func (s *URLService) HandleRedirect(c *ginext.Context) {
 
 func (s *URLService) HandleAnalytics(c *ginext.Context) {
 	short := c.Param("short")
+	if short == "" || len(short) > 50 {
+		c.JSON(http.StatusBadRequest, ginext.H{"error": "invalid short code"})
+		return
+	}
 	ctx := c.Request.Context()
 
 	u, err := s.repo.FindByShort(ctx, short)
 	if err != nil {
 		zlog.Logger.Warn().Err(err).Str("short", short).Msg("URL not found for analytics")
+		c.JSON(http.StatusNotFound, ginext.H{"error": "not found"})
+		return
+	}
+
+	if u == nil {
+		zlog.Logger.Warn().Str("short", short).Msg("URL not found (nil result)")
 		c.JSON(http.StatusNotFound, ginext.H{"error": "not found"})
 		return
 	}
@@ -221,8 +231,14 @@ func (s *URLService) HandleRecentClicks(c *ginext.Context) {
 	ctx := c.Request.Context()
 
 	u, err := s.repo.FindByShort(ctx, short)
-	if err != nil || u == nil {
-		zlog.Logger.Warn().Err(err).Str("short", short).Msg("URL not found for recent clicks")
+	if err != nil {
+		zlog.Logger.Error().Err(err).Str("short", short).Msg("Database error in recent clicks")
+		c.JSON(http.StatusInternalServerError, ginext.H{"error": "internal error"})
+		return
+	}
+
+	if u == nil {
+		zlog.Logger.Warn().Str("short", short).Msg("URL not found for recent clicks")
 		c.JSON(http.StatusNotFound, ginext.H{"error": "not found"})
 		return
 	}
