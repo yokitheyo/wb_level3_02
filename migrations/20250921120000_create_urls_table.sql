@@ -1,4 +1,4 @@
--- +migrate Up
+-- +goose Up
 CREATE TABLE IF NOT EXISTS urls (
                                     id SERIAL PRIMARY KEY,
                                     short VARCHAR(10) NOT NULL UNIQUE,
@@ -9,5 +9,5 @@ CREATE TABLE IF NOT EXISTS urls (
     is_disabled BOOLEAN DEFAULT FALSE
     );
 
--- +migrate Down
+-- +goose Down
 DROP TABLE IF EXISTS urls;

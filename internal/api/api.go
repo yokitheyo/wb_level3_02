@@ -20,6 +20,10 @@ func NewAPI(a *app.App) *API {
 	engine := ginext.New()
 	engine.Use(ginext.Logger(), ginext.Recovery())
 	engine.LoadHTMLGlob("templates/*")
+	engine.Static("/static", "./static")
+	engine.GET("/", func(c *ginext.Context) {
+		c.HTML(http.StatusOK, "index.html", nil)
+	})
 
 	api := &API{
 		Engine: engine,

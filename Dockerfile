@@ -1,5 +1,5 @@
 # --- Stage 1: Build ---
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 
@@ -18,11 +18,13 @@ FROM alpine:latest
 
 WORKDIR /app
 
-# Копируем бинарник и папки
+# Копируем бинарник, конфиг и папки
 COPY --from=builder /app/shortener .
+COPY --from=builder /app/config.yaml .
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/static ./static
-COPY --from=builder /app/migrations ./migrations
+
+COPY ./migrations ./migrations
 
 # Порты
 EXPOSE 8080

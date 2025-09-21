@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	wbfconfig "github.com/wb-go/wbf/config"
@@ -37,8 +39,9 @@ type ShortenerConfig struct {
 
 func Load(path string) (*Config, error) {
 	c := wbfconfig.New()
+
 	if err := c.Load(path); err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		zlog.Logger.Warn().Err(err).Msg("config file not found, using environment variables and defaults")
 	}
 
 	var appConfig Config
@@ -47,7 +50,29 @@ func Load(path string) (*Config, error) {
 	}
 
 	if appConfig.Server.Addr == "" {
-		appConfig.Server.Addr = ":8080"
+		appConfig.Server.Addr = getEnv("SERVER_ADDR", ":8080")
+	}
+	if appConfig.Database.DSN == "" {
+		appConfig.Database.DSN = getEnv(
+			"DB_MASTER",
+			"postgres://shortener:shortener@db:5432/shortener?sslmode=disable",
+		)
+	}
+	if appConfig.Redis.Addr == "" {
+		appConfig.Redis.Addr = getEnv("REDIS_ADDR", "redis:6379")
+	}
+	if appConfig.Redis.Password == "" {
+		appConfig.Redis.Password = getEnv("REDIS_PASSWORD", "")
+	}
+	if appConfig.Redis.DB == 0 {
+		if dbStr := os.Getenv("REDIS_DB"); dbStr != "" {
+			if db, err := strconv.Atoi(dbStr); err == nil {
+				appConfig.Redis.DB = db
+			}
+		}
+	}
+	if appConfig.Shortener.BaseURL == "" {
+		appConfig.Shortener.BaseURL = getEnv("BASE_URL", "http://localhost:8080")
 	}
 	if appConfig.Shortener.TTL == 0 {
 		appConfig.Shortener.TTL = 24 * time.Hour
@@ -56,6 +81,13 @@ func Load(path string) (*Config, error) {
 		appConfig.Shortener.CleanupEvery = time.Hour
 	}
 
-	zlog.Logger.Info().Str("config_path", path).Msg("configuration loaded")
+	zlog.Logger.Info().Msg("configuration loaded")
 	return &appConfig, nil
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

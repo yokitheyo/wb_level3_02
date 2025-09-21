@@ -1,29 +1,21 @@
 package db
 
 import (
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"fmt"
+
+	"github.com/pressly/goose/v3"
 	"github.com/wb-go/wbf/dbpg"
 	"github.com/wb-go/wbf/zlog"
 )
 
-func RunMigrations(db *dbpg.DB, migrationsPath string) error {
-	driver, err := postgres.WithInstance(db.Master, &postgres.Config{})
-	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("failed to create migration driver")
-		return err
-	}
+func RunMigrations(db *dbpg.DB, migrationsDir string) error {
+	zlog.Logger.Info().Msgf("starting migrations from: %s", migrationsDir)
 
-	m, err := migrate.NewWithDatabaseInstance(migrationsPath, "postgres", driver)
-	if err != nil {
-		zlog.Logger.Error().Err(err).Msg("failed to create migrate instance")
-		return err
-	}
+	goose.SetDialect("postgres")
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := goose.Up(db.Master, migrationsDir); err != nil {
 		zlog.Logger.Error().Err(err).Msg("failed to apply migrations")
-		return err
+		return fmt.Errorf("failed to apply migrations: %w", err)
 	}
 
 	zlog.Logger.Info().Msg("migrations applied successfully")

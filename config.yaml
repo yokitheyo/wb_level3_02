@@ -1,11 +1,18 @@
 server:
   addr: ":8080"
+
 database:
-  master: "postgres://user:pass@localhost/db"
+  dsn: "host=db user=shortener password=shortener dbname=shortener sslmode=disable"
   max_open_conns: 10
   max_idle_conns: 5
-  conn_max_lifetime_sec: 60
+  conn_max_lifetime_sec: 300
+
 redis:
-  addr: "localhost:6379"
+  addr: "redis:6379"
   password: ""
   db: 0
+
+shortener:
+  base_url: "http://localhost:8080"
+  ttl: "24h"
+  cleanup_every: "1h"
