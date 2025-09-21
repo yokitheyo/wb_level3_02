@@ -114,6 +114,26 @@ async function handleSubmit(e) {
     }
 }
 
+async function getDetailedAnalytics(shortCode) {
+    try {
+        // Получаем данные за последние 30 дней
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+
+        const response = await fetch(`/analytics/${shortCode}/detailed?from=${startDate.toISOString().split('T')[0]}&to=${endDate.toISOString().split('T')[0]}`);
+
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        }
+    } catch (error) {
+        console.warn('Could not load detailed analytics:', error);
+    }
+
+    return null;
+}
+
 async function shortenUrl(url, customShort = '') {
     const requestBody = {
         url: url
@@ -248,70 +268,6 @@ async function getAnalytics(shortCode) {
 }
 
 // Получение дополнительных данных для аналитики (клики по дням)
-async function getDetailedAnalytics(shortCode) {
-    try {
-        // Получаем данные за последние 7 дней
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 7);
-
-        const response = await fetch(`/analytics/${shortCode}/detailed?from=${startDate.toISOString()}&to=${endDate.toISOString()}`);
-
-        if (response.ok) {
-            return await response.json();
-        }
-    } catch (error) {
-        console.warn('Could not load detailed analytics:', error);
-    }
-
-    return null;
-}
-
-function showAnalyticsModal(data) {
-    const modal = elements.analyticsModal;
-    const title = document.getElementById('analytics-title');
-    const totalClicks = document.getElementById('total-clicks');
-    const todayClicks = document.getElementById('today-clicks');
-    const mobilePercent = document.getElementById('mobile-percent');
-
-    title.textContent = `Аналитика: ${data.short}`;
-    totalClicks.textContent = data.visit_count || 0;
-
-    // Рассчитываем переходы за сегодня (если есть детальные данные)
-    const today = new Date().toISOString().split('T')[0];
-    todayClicks.textContent = '0'; // По умолчанию 0, можно расширить API для получения данных за сегодня
-
-    // Процент мобильных устройств - пока показываем 0%, нужно расширить API
-    mobilePercent.textContent = '0%';
-
-    // Show modal with animation
-    modal.classList.add('active');
-    modal.style.animation = 'fadeIn 0.3s ease-out';
-
-    // Генерируем график с реальными данными
-    generateClicksChart(data);
-
-    // Disable body scroll
-    document.body.style.overflow = 'hidden';
-}
-
-function closeAnalytics() {
-    const modal = elements.analyticsModal;
-    modal.style.animation = 'fadeOut 0.3s ease-out';
-
-    setTimeout(() => {
-        modal.classList.remove('active');
-        modal.style.animation = '';
-        document.body.style.overflow = 'auto';
-    }, 300);
-
-    // Destroy existing chart
-    if (currentChart) {
-        currentChart.destroy();
-        currentChart = null;
-    }
-}
-
 async function generateClicksChart(data) {
     const canvas = document.getElementById('clicks-chart');
     const ctx = canvas.getContext('2d');
@@ -339,13 +295,11 @@ async function generateClicksChart(data) {
             day: 'numeric'
         }));
 
-        // Используем реальные данные если есть, иначе 0
+        // Используем только реальные данные или 0
         if (detailedData && detailedData.daily_clicks && detailedData.daily_clicks[dateStr]) {
             clickData.push(detailedData.daily_clicks[dateStr]);
         } else {
-            // Если детальных данных нет, распределяем общее количество переходов
-            // более равномерно по дням (это временное решение)
-            clickData.push(i === 0 ? (data.visit_count || 0) : 0);
+            clickData.push(0);
         }
     }
 
@@ -400,15 +354,152 @@ async function generateClicksChart(data) {
     });
 
     // Загружаем список последних кликов
-    loadRecentClicks(data);
+    await loadRecentClicks(data);
+}
+async function showAnalyticsModal(data) {
+    const modal = elements.analyticsModal;
+    const title = document.getElementById('analytics-title');
+    const totalClicks = document.getElementById('total-clicks');
+    const todayClicks = document.getElementById('today-clicks');
+    const mobilePercent = document.getElementById('mobile-percent');
+
+    title.textContent = `Аналитика: ${data.short}`;
+    totalClicks.textContent = data.visit_count || 0;
+
+    // Загружаем реальные данные для сегодняшних переходов и мобильных устройств
+    const detailedData = await getDetailedAnalytics(data.short);
+
+    if (detailedData) {
+        const today = new Date().toISOString().split('T')[0];
+        todayClicks.textContent = detailedData.daily_clicks?.[today] || 0;
+        mobilePercent.textContent = detailedData.mobile_percentage ? `${detailedData.mobile_percentage}%` : '0%';
+    } else {
+        todayClicks.textContent = '0';
+        mobilePercent.textContent = '0%';
+    }
+
+    // Show modal with animation
+    modal.classList.add('active');
+    modal.style.animation = 'fadeIn 0.3s ease-out';
+
+    // Генерируем график с реальными данными
+    await generateClicksChart(data);
+
+    // Disable body scroll
+    document.body.style.overflow = 'hidden';
+}
+function closeAnalytics() {
+    const modal = elements.analyticsModal;
+    modal.style.animation = 'fadeOut 0.3s ease-out';
+
+    setTimeout(() => {
+        modal.classList.remove('active');
+        modal.style.animation = '';
+        document.body.style.overflow = 'auto';
+    }, 300);
+
+    // Destroy existing chart
+    if (currentChart) {
+        currentChart.destroy();
+        currentChart = null;
+    }
+}
+
+async function generateClicksChart(data) {
+    const canvas = document.getElementById('clicks-chart');
+    const ctx = canvas.getContext('2d');
+
+    // Destroy existing chart
+    if (currentChart) {
+        currentChart.destroy();
+    }
+
+    // Получаем детальную аналитику
+    const detailedData = await getDetailedAnalytics(data.short);
+
+    const labels = [];
+    const clickData = [];
+    const today = new Date();
+
+    // Создаем данные за последние 7 дней
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        labels.push(date.toLocaleDateString('ru-RU', {
+            month: 'short',
+            day: 'numeric'
+        }));
+
+        // Используем только реальные данные или 0
+        if (detailedData && detailedData.daily_clicks && detailedData.daily_clicks[dateStr]) {
+            clickData.push(detailedData.daily_clicks[dateStr]);
+        } else {
+            clickData.push(0);
+        }
+    }
+
+    // Создаем график только один раз
+    currentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Переходы',
+                data: clickData,
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#6366f1',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            elements: {
+                point: {
+                    hoverBackgroundColor: '#4f46e5'
+                }
+            }
+        }
+    });
+
+    // Загружаем список последних кликов (с await, так как функция асинхронная)
+    await loadRecentClicks(data);
 }
 
 async function loadRecentClicks(data) {
     const container = document.getElementById('recent-clicks');
 
     try {
-        // Попытка получить реальные данные о кликах
-        const response = await fetch(`/analytics/${data.short}/clicks`);
+        const response = await fetch(`/analytics/${data.short}/recent-clicks`);
 
         if (response.ok) {
             const clicksData = await response.json();
@@ -418,7 +509,7 @@ async function loadRecentClicks(data) {
                     <div class="click-item">
                         <div class="click-info">
                             <div class="time">${formatTimeAgo(new Date(click.occurred_at))}</div>
-                            <div class="details">${click.ip || 'Unknown IP'} • ${click.user_agent || 'Unknown Browser'}</div>
+                            <div class="details">${click.ip || 'Unknown IP'} • ${click.referrer || 'Direct'}</div>
                         </div>
                         <div class="click-device">
                             <i class="fas ${getDeviceIcon(click.device || 'desktop')}"></i>
@@ -433,7 +524,7 @@ async function loadRecentClicks(data) {
         console.warn('Could not load recent clicks:', error);
     }
 
-    // Если реальных данных нет, показываем сообщение
+    // Если данных нет
     if (data.visit_count === 0) {
         container.innerHTML = '<div class="no-data">Переходов пока нет</div>';
     } else {

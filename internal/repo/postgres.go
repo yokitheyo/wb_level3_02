@@ -145,7 +145,7 @@ func (r *PostgresRepo) AggregateByDay(ctx context.Context, short string, from, t
 
 func (r *PostgresRepo) SaveClick(ctx context.Context, click *model.Click) error {
 	query := `
-        INSERT INTO clicks (url_id, short, occurred, user_agent, ip, referrer, device)
+        INSERT INTO clicks (url_id, short, occurred_at, user_agent, ip, referrer, device)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
     `
 
@@ -160,4 +160,66 @@ func (r *PostgresRepo) SaveClick(ctx context.Context, click *model.Click) error 
 		click.Device,
 	)
 	return err
+}
+
+func (r *PostgresRepo) GetDeviceStats(ctx context.Context, short string, from, to time.Time) (map[string]int64, error) {
+	rows, err := r.db.QueryWithRetry(ctx, r.retryStrategy, `
+		SELECT COALESCE(device, 'desktop') AS device, COUNT(*) as count
+		FROM clicks 
+		WHERE short = $1 AND occurred_at BETWEEN $2 AND $3
+		GROUP BY device
+		ORDER BY count DESC
+	`, short, from, to)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	stats := make(map[string]int64)
+	for rows.Next() {
+		var device string
+		var count int64
+		if err := rows.Scan(&device, &count); err != nil {
+			return nil, err
+		}
+		stats[device] = count
+	}
+
+	return stats, nil
+}
+
+func (r *PostgresRepo) GetRecentClicks(ctx context.Context, short string, limit int) ([]*model.Click, error) {
+	rows, err := r.db.QueryWithRetry(ctx, r.retryStrategy, `
+		SELECT id, url_id, short, occurred_at, user_agent, ip, referrer, device
+		FROM clicks 
+		WHERE short = $1 
+		ORDER BY occurred_at DESC
+		LIMIT $2
+	`, short, limit)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var clicks []*model.Click
+	for rows.Next() {
+		click := &model.Click{}
+		if err := rows.Scan(
+			&click.ID,
+			&click.URLID,
+			&click.Short,
+			&click.Occurred,
+			&click.UserAgent,
+			&click.IP,
+			&click.Referrer,
+			&click.Device,
+		); err != nil {
+			return nil, err
+		}
+		clicks = append(clicks, click)
+	}
+
+	return clicks, nil
 }

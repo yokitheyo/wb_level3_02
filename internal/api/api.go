@@ -38,6 +38,9 @@ func (api *API) registerRoutes() {
 	api.Engine.POST("/shorten", api.App.Service.HandleShorten)
 	api.Engine.GET("/s/:short", api.App.Service.HandleRedirect)
 	api.Engine.GET("/analytics/:short", api.App.Service.HandleAnalytics)
+	// analytics
+	api.Engine.GET("/analytics/:short/detailed", api.App.Service.HandleDetailedAnalytics)
+	api.Engine.GET("/analytics/:short/recent-clicks", api.App.Service.HandleRecentClicks)
 }
 
 func (api *API) Start(addr string) error {

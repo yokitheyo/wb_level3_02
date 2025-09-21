@@ -158,3 +158,84 @@ func (s *URLService) HandleAnalytics(c *ginext.Context) {
 		"visit_count": u.Visits,
 	})
 }
+
+func (s *URLService) HandleDetailedAnalytics(c *ginext.Context) {
+	short := c.Param("short")
+	ctx := c.Request.Context()
+
+	fromStr := c.Query("from")
+	toStr := c.Query("to")
+
+	to := time.Now()
+	from := to.AddDate(0, 0, -30)
+
+	if fromStr != "" {
+		if parsedFrom, err := time.Parse("2006-01-02", fromStr); err == nil {
+			from = parsedFrom
+		}
+	}
+
+	if toStr != "" {
+		if parsedTo, err := time.Parse("2006-01-02", toStr); err == nil {
+			to = parsedTo.Add(24 * time.Hour)
+		}
+	}
+
+	u, err := s.repo.FindByShort(ctx, short)
+	if err != nil || u == nil {
+		zlog.Logger.Warn().Err(err).Str("short", short).Msg("URL not found for detailed analytics")
+		c.JSON(http.StatusNotFound, ginext.H{"error": "not found"})
+		return
+	}
+
+	dailyClicks, err := s.repo.AggregateByDay(ctx, short, from, to)
+	if err != nil {
+		zlog.Logger.Warn().Err(err).Str("short", short).Msg("failed to get daily clicks")
+		c.JSON(http.StatusInternalServerError, ginext.H{"error": "internal error"})
+		return
+	}
+
+	deviceStats, err := s.repo.GetDeviceStats(ctx, short, from, to)
+	if err != nil {
+		zlog.Logger.Warn().Err(err).Msg("failed to get device stats")
+		deviceStats = make(map[string]int64)
+	}
+
+	mobilePercent := 0.0
+	totalClicks := u.Visits
+	if totalClicks > 0 && deviceStats["mobile"] > 0 {
+		mobilePercent = float64(deviceStats["mobile"]) / float64(totalClicks) * 100
+	}
+
+	c.JSON(http.StatusOK, ginext.H{
+		"short":             u.Short,
+		"daily_clicks":      dailyClicks,
+		"device_stats":      deviceStats,
+		"mobile_percentage": int(mobilePercent),
+		"total_clicks":      totalClicks,
+	})
+}
+
+func (s *URLService) HandleRecentClicks(c *ginext.Context) {
+	short := c.Param("short")
+	ctx := c.Request.Context()
+
+	u, err := s.repo.FindByShort(ctx, short)
+	if err != nil || u == nil {
+		zlog.Logger.Warn().Err(err).Str("short", short).Msg("URL not found for recent clicks")
+		c.JSON(http.StatusNotFound, ginext.H{"error": "not found"})
+		return
+	}
+
+	clicks, err := s.repo.GetRecentClicks(ctx, short, 50)
+	if err != nil {
+		zlog.Logger.Error().Err(err).Msg("failed to get recent clicks")
+		c.JSON(http.StatusInternalServerError, ginext.H{"error": "internal error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, ginext.H{
+		"clicks": clicks,
+		"total":  len(clicks),
+	})
+}
