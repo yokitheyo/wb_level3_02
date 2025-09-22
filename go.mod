@@ -4,6 +4,8 @@ go 1.23.5
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/mssola/user_agent v0.6.0
+	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/pressly/goose/v3 v3.25.0
 	github.com/wb-go/wbf v0.0.4
 )
@@ -23,6 +25,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/ip2location/ip2location-go v8.3.0+incompatible // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
@@ -34,7 +37,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/mssola/user_agent v0.6.0 // indirect
+	github.com/oschwald/maxminddb-golang v1.13.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/rs/zerolog v1.30.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect

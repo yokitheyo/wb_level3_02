@@ -11,18 +11,29 @@ import (
 	"github.com/wb-go/wbf/ginext"
 	"github.com/wb-go/wbf/zlog"
 	"github.com/yokitheyo/wb_level3_02/internal/cache"
+	"github.com/yokitheyo/wb_level3_02/internal/geoip"
 	"github.com/yokitheyo/wb_level3_02/internal/model"
 	"github.com/yokitheyo/wb_level3_02/internal/repo"
 	"github.com/yokitheyo/wb_level3_02/internal/util"
 )
 
 type URLService struct {
-	repo  *repo.PostgresRepo
-	cache *cache.RedisCache
+	repo     *repo.PostgresRepo
+	cache    *cache.RedisCache
+	geoipSvc *geoip.Service
 }
 
 func NewURLService(repo *repo.PostgresRepo, cache *cache.RedisCache) *URLService {
-	return &URLService{repo, cache}
+	geoipService, err := geoip.GetInstance()
+	if err != nil {
+		zlog.Logger.Warn().Err(err).Msg("failed to initialize GeoIP service")
+	}
+
+	return &URLService{
+		repo:     repo,
+		cache:    cache,
+		geoipSvc: geoipService,
+	}
 }
 
 func GenerateShortCode() (string, error) {
@@ -90,53 +101,50 @@ func (s *URLService) HandleRedirect(c *ginext.Context) {
 	short := c.Param("short")
 	ctx := c.Request.Context()
 
-	var original string
-	var urlObj *model.URL
-
-	original, err := s.cache.Get(ctx, short)
-	if err != nil || original == "" {
-		u, err := s.repo.FindByShort(ctx, short)
-		if err != nil {
-			zlog.Logger.Warn().Err(err).Str("short", short).Msg("url not found")
-			c.JSON(http.StatusNotFound, ginext.H{"error": "url not found"})
-			return
-		}
-		urlObj = u
-		original = u.Original
-
-		_ = s.cache.Set(ctx, short, original, time.Until(u.ExpiresAt))
+	urlObj, err := s.repo.FindByShort(ctx, short)
+	if err != nil || urlObj == nil {
+		zlog.Logger.Warn().Err(err).Str("short", short).Msg("url not found")
+		c.JSON(http.StatusNotFound, ginext.H{"error": "url not found"})
+		return
 	}
 
-	if urlObj == nil {
-		if u, err := s.repo.FindByShort(ctx, short); err == nil {
-			urlObj = u
-		}
+	if err := s.repo.IncrementVisits(ctx, urlObj.ID); err != nil {
+		zlog.Logger.Warn().Int64("url_id", urlObj.ID).Err(err).Msg("failed to increment visits")
 	}
 
-	var click *model.Click
-	if urlObj != nil {
-		if err := s.repo.IncrementVisits(ctx, urlObj.ID); err != nil {
-			zlog.Logger.Warn().Int64("url_id", urlObj.ID).Err(err).Msg("failed to increment visits")
-		}
+	clientIP := c.ClientIP()
+	location := "Unknown"
 
-		click = &model.Click{
-			URLID:     urlObj.ID,
-			Short:     urlObj.Short,
-			Occurred:  time.Now().UTC(),
-			UserAgent: c.Request.UserAgent(),
-			IP:        c.ClientIP(),
-			Referrer:  c.Request.Referer(),
-			Device:    util.DetectDevice(c.Request.UserAgent()),
+	if s.geoipSvc != nil {
+		if strings.HasPrefix(clientIP, "127.") || strings.HasPrefix(clientIP, "172.") || strings.HasPrefix(clientIP, "10.") {
+			// mock for local ip
+			location = "Moscow, Moscow, Russia"
+		} else {
+			loc := s.geoipSvc.GetLocationFromIP(clientIP)
+			if loc != "" {
+				location = loc
+			}
 		}
 	}
 
-	if click != nil {
-		if err := s.repo.SaveClick(ctx, click); err != nil {
-			zlog.Logger.Warn().Err(err).Msg("failed to save click")
-		}
+	browser := geoip.GetBrowserFromUserAgent(c.Request.UserAgent())
+	device := util.DetectDevice(c.Request.UserAgent())
+
+	click := &model.Click{
+		URLID:     urlObj.ID,
+		Short:     urlObj.Short,
+		Occurred:  time.Now().UTC(),
+		UserAgent: c.Request.UserAgent(),
+		IP:        location,
+		Referrer:  browser,
+		Device:    device,
 	}
 
-	c.Redirect(http.StatusFound, original)
+	if err := s.repo.SaveClick(ctx, click); err != nil {
+		zlog.Logger.Warn().Err(err).Msg("failed to save click")
+	}
+
+	c.Redirect(http.StatusFound, urlObj.Original)
 }
 
 func (s *URLService) HandleAnalytics(c *ginext.Context) {

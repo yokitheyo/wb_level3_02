@@ -18,13 +18,18 @@ FROM alpine:latest
 
 WORKDIR /app
 
+# Устанавливаем необходимые пакеты
+RUN apk add --no-cache wget unzip ca-certificates
+
 # Копируем бинарник, конфиг и папки
 COPY --from=builder /app/shortener .
 COPY --from=builder /app/config.yaml .
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/static ./static
-
 COPY ./migrations ./migrations
+
+COPY ./internal/geoip/IP2LOCATION-LITE-DB3.CSV /app/geoip/IP2LOCATION-LITE-DB3.CSV
+
 
 # Порты
 EXPOSE 8080

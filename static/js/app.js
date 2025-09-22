@@ -503,7 +503,7 @@ function addToHistory(result) {
     }
 }
 
-function loadHistory() {
+async function loadHistory() {
     try {
         if (typeof(Storage) !== "undefined") {
             const savedHistory = localStorage.getItem('urlHistory');
@@ -511,6 +511,19 @@ function loadHistory() {
                 history = JSON.parse(savedHistory);
             }
         }
+
+        await Promise.all(history.map(async (item) => {
+            try {
+                const res = await fetch(`/analytics/${item.short}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    item.visits = data.visit_count || 0;
+                }
+            } catch (e) {
+                console.warn('Failed to load visit count for', item.short);
+            }
+        }));
+
     } catch (e) {
         console.warn('Could not load history from localStorage:', e);
         history = [];
