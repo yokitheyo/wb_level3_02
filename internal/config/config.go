@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	wbfconfig "github.com/wb-go/wbf/config"
@@ -22,7 +21,9 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	DSN string `mapstructure:"dsn"`
+	DSN            string `mapstructure:"dsn"`
+	Migrate        bool   `mapstructure:"migrate"`
+	MigrationsPath string `mapstructure:"migrations_path"`
 }
 
 type RedisConfig struct {
@@ -40,8 +41,8 @@ type ShortenerConfig struct {
 func Load(path string) (*Config, error) {
 	c := wbfconfig.New()
 
-	if err := c.Load(path); err != nil {
-		zlog.Logger.Warn().Err(err).Msg("config file not found, using environment variables and defaults")
+	if err := c.LoadConfigFiles(path); err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
 	var appConfig Config
@@ -49,45 +50,20 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	if appConfig.Server.Addr == "" {
-		appConfig.Server.Addr = getEnv("SERVER_ADDR", ":8080")
+	// Override with environment variables if set
+	if dsn := os.Getenv("DB_MASTER"); dsn != "" {
+		appConfig.Database.DSN = dsn
 	}
-	if appConfig.Database.DSN == "" {
-		appConfig.Database.DSN = getEnv(
-			"DB_MASTER",
-			"postgres://shortener:shortener@db:5432/shortener?sslmode=disable",
-		)
+	if addr := os.Getenv("SERVER_ADDR"); addr != "" {
+		appConfig.Server.Addr = addr
 	}
-	if appConfig.Redis.Addr == "" {
-		appConfig.Redis.Addr = getEnv("REDIS_ADDR", "redis:6379")
+	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
+		appConfig.Redis.Addr = addr
 	}
-	if appConfig.Redis.Password == "" {
-		appConfig.Redis.Password = getEnv("REDIS_PASSWORD", "")
-	}
-	if appConfig.Redis.DB == 0 {
-		if dbStr := os.Getenv("REDIS_DB"); dbStr != "" {
-			if db, err := strconv.Atoi(dbStr); err == nil {
-				appConfig.Redis.DB = db
-			}
-		}
-	}
-	if appConfig.Shortener.BaseURL == "" {
-		appConfig.Shortener.BaseURL = getEnv("BASE_URL", "http://localhost:8080")
-	}
-	if appConfig.Shortener.TTL == 0 {
-		appConfig.Shortener.TTL = 24 * time.Hour
-	}
-	if appConfig.Shortener.CleanupEvery == 0 {
-		appConfig.Shortener.CleanupEvery = time.Hour
+	if password := os.Getenv("REDIS_PASSWORD"); password != "" {
+		appConfig.Redis.Password = password
 	}
 
 	zlog.Logger.Info().Msg("configuration loaded")
 	return &appConfig, nil
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

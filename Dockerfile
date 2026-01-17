@@ -1,38 +1,33 @@
 # --- Stage 1: Build ---
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Копируем go.mod и go.sum
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Копируем весь исходный код
 COPY . .
 
-# Собираем бинарник
 RUN go build -o shortener ./cmd/api
+
+RUN go install github.com/pressly/goose/v3/cmd/goose@latest
 
 # --- Stage 2: Run ---
 FROM alpine:latest
 
 WORKDIR /app
 
-# Устанавливаем необходимые пакеты
-RUN apk add --no-cache wget unzip ca-certificates
+RUN apk add --no-cache bash ca-certificates
 
-# Копируем бинарник, конфиг и папки
-COPY --from=builder /app/shortener .
-COPY --from=builder /app/config.yaml .
+COPY --from=builder /app/shortener ./
+COPY --from=builder /app/config.yaml ./
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/static ./static
-COPY ./migrations ./migrations
+COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/internal/geoip/IP2LOCATION-LITE-DB3.CSV ./geoip/IP2LOCATION-LITE-DB3.CSV
 
-COPY ./internal/geoip/IP2LOCATION-LITE-DB3.CSV /app/geoip/IP2LOCATION-LITE-DB3.CSV
+COPY --from=builder /go/bin/goose /usr/local/bin/goose
 
-
-# Порты
 EXPOSE 8080
 
-# Запуск
 CMD ["./shortener"]

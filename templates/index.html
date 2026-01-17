@@ -1,54 +1,48 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
-<div class="container">
-    <!-- Header -->
-    <header class="header">
-        <div class="logo">
-            <i class="fas fa-link"></i>
-            <h1>URL Shortener</h1>
-        </div>
-        <nav class="nav">
-            <a href="#" class="nav-link active" data-section="main">Главная</a>
-            <a href="#" class="nav-link" data-section="history">История</a>
-        </nav>
-    </header>
+    <!-- Фон с частицами -->
+    <div id="particles-js" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;"></div>
 
-    <!-- Main Section -->
-    <section id="main-section" class="section active">
-        <div class="hero">
-            <h2 class="hero-title">Сократите длинные ссылки</h2>
-            <p class="hero-subtitle">Создавайте короткие ссылки и отслеживайте аналитику переходов</p>
-        </div>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-link"></i>
+                <h1>URL Shortener</h1>
+            </div>
+            <nav class="nav">
+                <a href="#" class="nav-link active" data-section="main">Главная</a>
+                <a href="#" class="nav-link" data-section="history">История</a>
+            </nav>
+        </header>
 
-        <div class="shortener-form">
+        <section id="main-section" class="section active">
+            <div class="hero">
+                <h2 class="hero-title">Сократите длинные ссылки</h2>
+                <p class="hero-subtitle">Создавайте короткие ссылки и отслеживайте аналитику переходов</p>
+            </div>
+
             <form id="shorten-form" class="form">
                 <div class="input-group">
                     <div class="input-wrapper">
                         <i class="fas fa-globe input-icon"></i>
-                        <input
-                                type="url"
-                                id="original-url"
-                                placeholder="Введите длинную ссылку..."
-                                required
-                                class="input-field"
-                        >
+                        <input type="url" id="original-url" placeholder="Введите длинную ссылку..." required
+                            class="input-field">
                     </div>
                     <div class="input-wrapper custom-short">
                         <i class="fas fa-edit input-icon"></i>
-                        <input
-                                type="text"
-                                id="custom-short"
-                                placeholder="Пользовательское имя (необязательно)"
-                                class="input-field"
-                        >
+                        <input type="text" id="custom-short" placeholder="Пользовательское имя (необязательно)"
+                            class="input-field">
                     </div>
                 </div>
                 <button type="submit" class="submit-btn" id="submit-btn">
@@ -56,111 +50,125 @@
                     <span>Сократить</span>
                 </button>
             </form>
-        </div>
 
-        <!-- Result Card -->
-        <div id="result-card" class="result-card hidden">
-            <div class="result-header">
-                <i class="fas fa-check-circle success-icon"></i>
-                <h3>Ссылка создана!</h3>
-            </div>
-            <div class="result-content">
-                <div class="url-display">
-                    <label>Короткая ссылка:</label>
-                    <div class="url-copy-group">
-                        <input type="text" id="short-url-display" readonly class="url-input">
-                        <button class="copy-btn" onclick="copyToClipboard()">
-                            <i class="fas fa-copy"></i>
+            <div id="result-card" class="result-card hidden">
+                <div class="result-header">
+                    <i class="fas fa-check-circle success-icon"></i>
+                    <h3>Ссылка создана!</h3>
+                </div>
+                <div class="result-content">
+                    <div class="url-display">
+                        <label>Короткая ссылка:</label>
+                        <div class="url-copy-group">
+                            <input type="text" id="short-url-display" readonly class="url-input">
+                            <button class="copy-btn" onclick="copyToClipboard()">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="result-actions">
+                        <button class="action-btn" onclick="viewAnalytics()">
+                            <i class="fas fa-chart-bar"></i>
+                            Аналитика
+                        </button>
+                        <button class="action-btn secondary" onclick="resetForm()">
+                            <i class="fas fa-plus"></i>
+                            Создать еще
                         </button>
                     </div>
                 </div>
-                <div class="result-actions">
-                    <button class="action-btn" onclick="viewAnalytics()">
-                        <i class="fas fa-chart-bar"></i>
-                        Аналитика
-                    </button>
-                    <button class="action-btn secondary" onclick="resetForm()">
-                        <i class="fas fa-plus"></i>
-                        Создать еще
-                    </button>
-                </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- History Section -->
-    <section id="history-section" class="section">
-        <div class="section-header">
-            <h2>История ссылок</h2>
-            <button class="refresh-btn" onclick="loadHistory()">
-                <i class="fas fa-refresh"></i>
-            </button>
-        </div>
-        <div id="history-list" class="history-list">
-            <!-- История будет загружаться динамически -->
-        </div>
-    </section>
-
-    <!-- Analytics Modal -->
-    <div id="analytics-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="analytics-title">Аналитика ссылки</h3>
-                <button class="close-btn" onclick="closeAnalytics()">
-                    <i class="fas fa-times"></i>
-                </button>
+        <section id="history-section" class="section">
+            <div class="section-header">
+                <h2>История ссылок</h2>
             </div>
-            <div class="modal-body">
-                <div class="analytics-stats">
-                    <div class="stat-card">
-                        <i class="fas fa-mouse-pointer"></i>
-                        <div class="stat-info">
-                            <div class="stat-value" id="total-clicks">0</div>
-                            <div class="stat-label">Всего переходов</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-calendar"></i>
-                        <div class="stat-info">
-                            <div class="stat-value" id="today-clicks">0</div>
-                            <div class="stat-label">Сегодня</div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-mobile-alt"></i>
-                        <div class="stat-info">
-                            <div class="stat-value" id="mobile-percent">0%</div>
-                            <div class="stat-label">Мобильные</div>
-                        </div>
-                    </div>
-                </div>
+            <div id="history-list" class="history-list"></div>
+        </section>
 
-                <div class="analytics-section">
-                    <h4>График переходов</h4>
-                    <div class="chart-container">
-                        <canvas id="clicks-chart"></canvas>
-                    </div>
+        <div id="analytics-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="analytics-title">Аналитика ссылки</h3>
+                    <button class="close-btn" onclick="closeAnalytics()">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
+                <div class="modal-body">
+                    <div class="analytics-stats">
+                        <div class="stat-card">
+                            <i class="fas fa-mouse-pointer"></i>
+                            <div class="stat-info">
+                                <div class="stat-value" id="total-clicks">0</div>
+                                <div class="stat-label">Всего переходов</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-calendar"></i>
+                            <div class="stat-info">
+                                <div class="stat-value" id="today-clicks">0</div>
+                                <div class="stat-label">Сегодня</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-mobile-alt"></i>
+                            <div class="stat-info">
+                                <div class="stat-value" id="mobile-percent">0%</div>
+                                <div class="stat-label">Мобильные</div>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="analytics-section">
-                    <h4>Последние переходы</h4>
-                    <div id="recent-clicks" class="recent-clicks">
-                        <!-- Список последних переходов -->
+                    <div class="analytics-section">
+                        <h4>График переходов</h4>
+                        <div class="chart-container">
+                            <canvas id="clicks-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="analytics-section">
+                        <h4>Последние переходы</h4>
+                        <div id="recent-clicks" class="recent-clicks"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Loading Spinner -->
-<div id="loading" class="loading hidden">
-    <div class="spinner"></div>
-</div>
+    <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+    </div>
 
-<!-- Toast Notifications -->
-<div id="toast-container" class="toast-container"></div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="/static/js/app.js"></script>
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Подключение particles.js -->
+    <script src="https://cdn.jsdelivr.net/npm/particles.js"></script>
+
+    <!-- Инициализация particles.js -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            particlesJS("particles-js", {
+                "particles": {
+                    "number": { "value": 60, "density": { "enable": true, "value_area": 800 } },
+                    "color": { "value": "#00ff88" },
+                    "shape": { "type": "circle" },
+                    "opacity": { "value": 0.3, "random": true },
+                    "size": { "value": 3, "random": true },
+                    "line_linked": { "enable": true, "distance": 150, "color": "#00ff88", "opacity": 0.2, "width": 1 },
+                    "move": { "enable": true, "speed": 2, "out_mode": "out" }
+                },
+                "interactivity": {
+                    "detect_on": "canvas",
+                    "events": { "onhover": { "enable": true, "mode": "grab" } },
+                    "modes": { "grab": { "distance": 140, "line_linked": { "opacity": 1 } } }
+                },
+                "retina_detect": true
+            });
+        });
+    </script>
+
+    <script src="/static/js/app.js"></script>
 </body>
+
 </html>
