@@ -43,7 +43,7 @@ func (uc *URLShortenerUseCase) GetRecentClicks(ctx context.Context, query dto.Re
 		clickMaps[i] = map[string]interface{}{
 			"url_id":      click.URLID,
 			"short":       click.Short,
-			"occurred_at": click.OccurredAt.Unix(),
+			"occurred_at": click.OccurredAt.UnixMilli(),
 			"user_agent":  click.UserAgent,
 			"ip":          click.IP,
 			"referrer":    click.Referrer,

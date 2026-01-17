@@ -379,7 +379,7 @@ class URLShortenerApp {
                     container.innerHTML = clicksData.clicks.map(click => `
                         <div class="click-item">
                             <div class="click-info">
-                                <div class="time">${this.formatTimeAgo(new Date(click.occurred_at))}</div>
+                                <div class="time">${this.formatTimeAgo(click.occurred_at)}</div>
                                 <div class="details">${click.ip || 'Unknown IP'} • ${click.referrer || 'Direct'}</div>
                             </div>
                             <div class="click-device">
@@ -578,11 +578,23 @@ class URLShortenerApp {
         return url.length <= length ? url : url.substring(0, length) + '...';
     }
 
-    formatTimeAgo(date) {
+    formatTimeAgo(dateInput) {
         const now = new Date();
-        const diffInSeconds = Math.floor((now - date) / 1000);
+        let dateObj;
 
-        if (diffInSeconds < 60) return `${diffInSeconds} сек назад`;
+        // Если это число (миллисекунды), преобразуем в Date
+        if (typeof dateInput === 'number') {
+            dateObj = new Date(dateInput);
+        } else if (typeof dateInput === 'string') {
+            // Если это строка ISO, преобразуем в Date
+            dateObj = new Date(dateInput);
+        } else {
+            dateObj = dateInput instanceof Date ? dateInput : new Date();
+        }
+
+        const diffInSeconds = Math.floor((now - dateObj) / 1000);
+
+        if (diffInSeconds < 60) return `${Math.max(0, diffInSeconds)} сек назад`;
         if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} мин назад`;
         if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ч назад`;
         return `${Math.floor(diffInSeconds / 86400)} дн назад`;
