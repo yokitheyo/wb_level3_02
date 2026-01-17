@@ -24,7 +24,7 @@ COPY --from=builder /app/config.yaml ./
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/static ./static
 COPY --from=builder /app/migrations ./migrations
-COPY --from=builder /app/internal/geoip/IP2LOCATION-LITE-DB3.CSV ./geoip/IP2LOCATION-LITE-DB3.CSV
+
 
 COPY --from=builder /go/bin/goose /usr/local/bin/goose
 

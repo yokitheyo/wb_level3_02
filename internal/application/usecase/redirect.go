@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 
 	"github.com/wb-go/wbf/zlog"
 	"github.com/yokitheyo/wb_level3_02/internal/application/dto"
@@ -31,7 +32,7 @@ func (uc *URLShortenerUseCase) Redirect(ctx context.Context, short string, meta 
 	click := &domain.Click{
 		URLID:      urlObj.ID,
 		Short:      urlObj.Short,
-		OccurredAt: urlObj.CreatedAt,
+		OccurredAt: time.Now(),
 		UserAgent:  meta.UserAgent,
 		IP:         location,
 		Referrer:   meta.Browser,
