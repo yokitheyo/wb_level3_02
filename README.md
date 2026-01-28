@@ -197,19 +197,3 @@ All errors follow this format:
 ![Analytics](docs/screenshots/2.png)
 
 ---
-
-### Local Development
-
-```bash
-# Install dependencies
-go mod download
-
-# Run migrations
-goose -dir migrations postgres "your-db-connection-string" up
-
-# Build the application
-go build -o shortener ./cmd/api
-
-# Run the server
-./shortener
-```
