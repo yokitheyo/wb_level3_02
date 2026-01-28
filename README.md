@@ -14,47 +14,6 @@ A modern, production-ready URL shortening service built with Go, featuring clean
 - **Comprehensive Logging**: Structured logging with ZeroLog
 - **Error Handling**: Robust error handling with graceful degradation
 
-## 🏗️ Architecture & Design Patterns
-
-This project implements several industry-standard patterns:
-
-### 1. **Clean Architecture**
-- **Presentation Layer**: HTTP handlers, routing, middleware, validation
-- **Application Layer**: Use cases, business logic, DTOs
-- **Domain Layer**: Core entities (URL, Click) and domain interfaces
-- **Infrastructure Layer**: Database, cache, and external service adapters
-
-### 2. **Layered Architecture with Domain-Driven Design**
-- Clear separation of concerns
-- Dependencies flow inward (Dependency Injection)
-- Business logic independent from frameworks
-
-### 3. **Repository Pattern**
-- Abstraction over data access
-- Easy switching between storage implementations
-- Unit test friendly
-
-### 4. **Adapter Pattern**
-- Adapters for PostgreSQL, Redis, GeoIP service
-- External service integration without tight coupling
-- Clean interface contracts
-
-### 5. **Builder Pattern**
-- `AppBuilder` for application initialization
-- Modular component composition
-- Testable configuration
-
-### 6. **Middleware Pattern**
-- Request logging and metrics
-- CORS handling
-- Panic recovery
-- Request/response processing pipeline
-
-### 7. **DTO (Data Transfer Object) Pattern**
-- Separation between presentation and domain models
-- Type-safe API contracts
-- Request/response validation
-
 ## 🐳 Quick Start with Docker
 
 ### Prerequisites
